@@ -3,46 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Hub</title>
+    <title>Tic-Tac-Toe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #1a202c; color: #e2e8f0; }
-        .game-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-        .game-card { background-color: #2d3748; padding: 1rem; border-radius: 0.5rem; text-align: center; cursor: pointer; }
-        .game-card:hover { background-color: #4a5568; }
-        .hidden { display: none; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
-    <!-- Main Menu -->
-    <div id="main-menu" class="w-full max-w-5xl">
-        <h1 class="text-4xl font-bold text-center mb-6">Game Hub</h1>
-        <div class="game-grid">
-            <div class="game-card" onclick="showGame('tic-tac-toe')">Tic-Tac-Toe</div>
-            <div class="game-card" onclick="showGame('snake')">Snake (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('pong')">Pong (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('flappy-bird')">Flappy Bird (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('2048')">2048 (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('minesweeper')">Minesweeper (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('sudoku')">Sudoku (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('tetris')">Tetris (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('breakout')">Breakout (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('memory')">Memory Match (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('whack-a-mole')">Whack-a-Mole (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('connect-four')">Connect Four (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('space-invaders')">Space Invaders (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('pacman')">Pacman (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('doodle-jump')">Doodle Jump (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('crossy-road')">Crossy Road (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('asteroids')">Asteroids (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('simon')">Simon Says (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('hangman')">Hangman (Coming Soon)</div>
-            <div class="game-card" onclick="showGame('chess')">Chess (Coming Soon)</div>
-        </div>
-    </div>
-
-    <!-- Tic-Tac-Toe Game -->
-    <div id="tic-tac-toe" class="hidden w-full max-w-5xl">
+    <div class="w-full max-w-5xl">
         <h2 class="text-2xl font-bold text-center mb-4">Tic-Tac-Toe</h2>
         <div id="status" class="text-center mb-4">Player X's turn</div>
         <div class="grid grid-cols-3 gap-2 w-64 mx-auto">
@@ -56,120 +24,13 @@
             <button class="bg-gray-700 h-16 text-2xl" onclick="makeMove(7)"></button>
             <button class="bg-gray-700 h-16 text-2xl" onclick="makeMove(8)"></button>
         </div>
-        <button class="mt-4 bg-blue-600 px-4 py-2 rounded" onclick="resetGame()">Reset Game</button>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded ml-2" onclick="backToMenu()">Back to Menu</button>
-    </div>
-
-    <!-- Placeholder Game Sections -->
-    <div id="snake" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Snake</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="pong" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Pong</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="flappy-bird" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Flappy Bird</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="2048" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">2048</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="minesweeper" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Minesweeper</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="sudoku" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Sudoku</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="tetris" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Tetris</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="breakout" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Breakout</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="memory" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Memory Match</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="whack-a-mole" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Whack-a-Mole</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="connect-four" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Connect Four</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="space-invaders" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Space Invaders</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="pacman" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Pacman</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="doodle-jump" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Doodle Jump</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="crossy-road" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Crossy Road</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="asteroids" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Asteroids</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="simon" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Simon Says</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="hangman" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Hangman</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
-    </div>
-    <div id="chess" class="hidden w-full max-w-5xl">
-        <h2 class="text-2xl font-bold text-center mb-4">Chess</h2>
-        <p class="text-center">This game is coming soon!</p>
-        <button class="mt-4 bg-gray-600 px-4 py-2 rounded" onclick="backToMenu()">Back to Menu</button>
+        <div class="text-center mt-4">
+            <button class="bg-blue-600 px-4 py-2 rounded" onclick="resetGame()">Reset Game</button>
+            <a href="index.html" class="inline-block bg-gray-600 px-4 py-2 rounded ml-2">Back to Hub</a>
+        </div>
     </div>
 
     <script>
-        // Navigation
-        function showGame(gameId) {
-            document.querySelectorAll('#main-menu, #tic-tac-toe, #snake, #pong, #flappy-bird, #2048, #minesweeper, #sudoku, #tetris, #breakout, #memory, #whack-a-mole, #connect-four, #space-invaders, #pacman, #doodle-jump, #crossy-road, #asteroids, #simon, #hangman, #chess').forEach(el => el.classList.add('hidden'));
-            document.getElementById(gameId).classList.remove('hidden');
-        }
-
-        function backToMenu() {
-            document.querySelectorAll('#tic-tac-toe, #snake, #pong, #flappy-bird, #2048, #minesweeper, #sudoku, #tetris, #breakout, #memory, #whack-a-mole, #connect-four, #space-invaders, #pacman, #doodle-jump, #crossy-road, #asteroids, #simon, #hangman, #chess').forEach(el => el.classList.add('hidden'));
-            document.getElementById('main-menu').classList.remove('hidden');
-        }
-
-        // Tic-Tac-Toe Logic
         let board = ['', '', '', '', '', '', '', '', ''];
         let currentPlayer = 'X';
         let gameActive = true;
@@ -183,7 +44,7 @@
         function makeMove(index) {
             if (board[index] === '' && gameActive) {
                 board[index] = currentPlayer;
-                document.querySelectorAll('#tic-tac-toe button')[index].textContent = currentPlayer;
+                document.querySelectorAll('.grid button')[index].textContent = currentPlayer;
                 checkResult();
                 currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
                 if (gameActive) {
@@ -219,7 +80,7 @@
             currentPlayer = 'X';
             gameActive = true;
             document.getElementById('status').textContent = `Player ${currentPlayer}'s turn`;
-            document.querySelectorAll('#tic-tac-toe button').forEach(btn => btn.textContent = '');
+            document.querySelectorAll('.grid button').forEach(btn => btn.textContent = '');
         }
     </script>
 </body>
