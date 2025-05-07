@@ -1,0 +1,1264 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Game Hub</title>
+    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/babel-standalone@7.22.9/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        .card-hover:hover { background-color: #4b5563; }
+        .canvas-container { position: relative; }
+        .canvas-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    </style>
+</head>
+<body className="bg-gray-800 text-white">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const gamesList = [
+            { name: "Tic-Tac-Toe", start: startTicTacToe },
+            { name: "Snake", start: startSnake },
+            { name: "Number Guess", start: startNumberGuess },
+            { name: "Memory Match", start: startMemoryMatch },
+            { name: "Pong", start: startPong },
+            { name: "Minesweeper", start: startMinesweeper },
+            { name: "Simon Says", start: startSimonSays },
+            { name: "Brick Breaker", start: startBrickBreaker },
+        ];
+
+        function GameHub() {
+            const [isDarkTheme, setIsDarkTheme] = useState(true);
+            const [isMusicOn, setIsMusicOn] = useState(true);
+            const [playerName, setPlayerName] = useState("Player");
+            const [showNamePrompt, setShowNamePrompt] = useState(true);
+            const [gamesPlayed, setGamesPlayed] = useState({
+                "Tic-Tac-Toe": 0, "Snake": 0, "Number Guess": 0, "Memory Match": 0,
+                "Pong": 0, "Minesweeper": 0, "Simon Says": 0, "Brick Breaker": 0
+            });
+            const [highScores, setHighScores] = useState(() => loadHighScores());
+            const [stats, setStats] = useState(() => loadStats());
+            const [achievements, setAchievements] = useState(() => loadAchievements());
+            const [currentView, setCurrentView] = useState("dashboard");
+            const [gameState, setGameState] = useState(null);
+
+            function loadHighScores() {
+                try {
+                    return JSON.parse(localStorage.getItem("high_scores")) || 
+                           Object.fromEntries(Object.keys(gamesPlayed).map(game => [game, 0]));
+                } catch {
+                    return Object.fromEntries(Object.keys(gamesPlayed).map(game => [game, 0]));
+                }
+            }
+
+            function saveHighScores(scores) {
+                localStorage.setItem("high_scores", JSON.stringify(scores));
+                setHighScores(scores);
+            }
+
+            function loadStats() {
+                try {
+                    return JSON.parse(localStorage.getItem("stats")) || { games_played: 0, total_score: 0 };
+                } catch {
+                    return { games_played: 0, total_score: 0 };
+                }
+            }
+
+            function saveStats(newStats) {
+                localStorage.setItem("stats", JSON.stringify(newStats));
+                setStats(newStats);
+            }
+
+            function loadAchievements() {
+                try {
+                    return JSON.parse(localStorage.getItem("achievements")) || [];
+                } catch {
+                    return [];
+                }
+            }
+
+            function saveAchievements(newAchievements) {
+                localStorage.setItem("achievements", JSON.stringify(newAchievements));
+                setAchievements(newAchievements);
+            }
+
+            function checkAchievement(achievement, condition) {
+                if (condition && !achievements.includes(achievement)) {
+                    const newAchievements = [...achievements, achievement];
+                    saveAchievements(newAchievements);
+                    alert(`Achievement Unlocked! ${achievement}`);
+                }
+            }
+
+            function playSound(type) {
+                const audio = new Audio();
+                if (type === "click") audio.src = "https://freesound.org/data/previews/171/171671_2437358-lq.mp3";
+                else if (type === "game_over") audio.src = "https://freesound.org/data/previews/66/66616_354672-lq.mp3";
+                else if (type === "point") audio.src = "https://freesound.org/data/previews/342/342156_5661087-lq.mp3";
+                audio.play().catch(() => {});
+            }
+
+            function toggleTheme() {
+                playSound("click");
+                setIsDarkTheme(!isDarkTheme);
+            }
+
+            function toggleMusic() {
+                playSound("click");
+                setIsMusicOn(!isMusicOn);
+            }
+
+            function resetStats() {
+                playSound("click");
+                if (window.confirm("Reset all stats?")) {
+                    setStats({ games_played: 0, total_score: 0 });
+                    setGamesPlayed(Object.fromEntries(Object.keys(gamesPlayed).map(game => [game, 0])));
+                    saveStats({ games_played: 0, total_score: 0 });
+                    setCurrentView("dashboard");
+                }
+            }
+
+            function resetAchievements() {
+                playSound("click");
+                if (window.confirm("Reset all achievements?")) {
+                    setAchievements([]);
+                    saveAchievements([]);
+                    setCurrentView("dashboard");
+                }
+            }
+
+            function startGame(gameName, startFunction) {
+                playSound("click");
+                setGamesPlayed(prev => ({ ...prev, [gameName]: prev[gameName] + 1 }));
+                setStats(prev => {
+                    const newStats = { ...prev, games_played: prev.games_played + 1 };
+                    saveStats(newStats);
+                    return newStats;
+                });
+                setCurrentView("game");
+                setGameState({ gameName, startFunction });
+            }
+
+            function renderDashboard() {
+                const completion = Math.min(100, (Object.values(gamesPlayed).filter(count => count > 0).length / 8) * 100);
+                const maxPlayed = Math.max(...Object.values(gamesPlayed)) || 1;
+
+                return (
+                    <div className="flex h-screen">
+                        <div className="w-48 p-4 bg-gray-900 flex flex-col gap-2">
+                            <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={() => setCurrentView("dashboard")}>Home</button>
+                            <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={() => setCurrentView("highScores")}>High Scores</button>
+                            <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={() => setCurrentView("stats")}>Stats</button>
+                            <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={() => setCurrentView("achievements")}>Achievements</button>
+                            <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={() => setCurrentView("settings")}>Settings</button>
+                        </div>
+                        <div className="flex-1 p-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h1 className="text-2xl font-bold">Neon Game Hub - {playerName}</h1>
+                            </div>
+                            <div className="flex flex-col items-center">
+                                <div className="relative w-24 h-24 mb-4">
+                                    <canvas
+                                        width="100"
+                                        height="100"
+                                        ref={canvas => {
+                                            if (canvas) {
+                                                const ctx = canvas.getContext("2d");
+                                                ctx.clearRect(0, 0, 100, 100);
+                                                ctx.beginPath();
+                                                ctx.arc(50, 50, 40, 0, 2 * Math.PI);
+                                                ctx.lineWidth = 10;
+                                                ctx.strokeStyle = "#3b82f6";
+                                                ctx.stroke();
+                                                ctx.beginPath();
+                                                ctx.arc(50, 50, 40, -Math.PI / 2, -Math.PI / 2 + (completion * 3.6 * Math.PI / 180));
+                                                ctx.stroke();
+                                            }
+                                        }}
+                                    ></canvas>
+                                    <div className="canvas-text text-center">{Math.round(completion)}% Complete</div>
+                                </div>
+                                <canvas
+                                    width="400"
+                                    height="100"
+                                    className="mb-4"
+                                    ref={canvas => {
+                                        if (canvas) {
+                                            const ctx = canvas.getContext("2d");
+                                            ctx.clearRect(0, 0, 400, 100);
+                                            let x = 20;
+                                            Object.keys(gamesPlayed).forEach(game => {
+                                                const height = (gamesPlayed[game] / maxPlayed) * 80;
+                                                ctx.fillStyle = "#3b82f6";
+                                                ctx.fillRect(x, 100 - height, 40, height);
+                                                ctx.fillStyle = "white";
+                                                ctx.font = "8px Arial";
+                                                ctx.save();
+                                                ctx.translate(x + 20, 110);
+                                                ctx.rotate(-Math.PI / 2);
+                                                ctx.fillText(game.slice(0, 3), 0, 0);
+                                                ctx.restore();
+                                                x += 50;
+                                            });
+                                            ctx.fillStyle = "white";
+                                            ctx.font = "10px Arial";
+                                            ctx.fillText("Games Played", 0, 10);
+                                        }
+                                    }}
+                                ></canvas>
+                                <div className="grid grid-cols-4 gap-4">
+                                    {gamesList.map(({ name, start }) => (
+                                        <div
+                                            key={name}
+                                            className="p-4 bg-gray-700 rounded card-hover cursor-pointer"
+                                            onClick={() => startGame(name, start)}
+                                        >
+                                            <h3 className="text-lg font-bold">{name}</h3>
+                                            <p>High Score: {highScores[name] || 0}</p>
+                                            <p>Played: {gamesPlayed[name]}</p>
+                                            <button className="mt-2 py-1 px-4 bg-blue-600 hover:bg-blue-700 rounded">Play</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            function renderHighScores() {
+                return (
+                    <div className="p-4 max-w-md mx-auto bg-gray-900 rounded">
+                        <h2 className="text-xl font-bold mb-4">{playerName}'s High Scores</h2>
+                        {Object.entries(highScores).map(([game, score]) => (
+                            <p key={game} className="mb-2">{game}: {score}</p>
+                        ))}
+                        <button className="mt-4 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={() => setCurrentView("dashboard")}>
+                            Close
+                        </button>
+                    </div>
+                );
+            }
+
+            function renderStats() {
+                return (
+                    <div className="p-4 max-w-md mx-auto bg-gray-900 rounded">
+                        <h2 className="text-xl font-bold mb-4">{playerName}'s Stats</h2>
+                        <p className="mb-2">Games Played: {stats.games_played}</p>
+                        <p className="mb-2">Total Score: {stats.total_score}</p>
+                        <button className="mt-4 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={() => setCurrentView("dashboard")}>
+                            Close
+                        </button>
+                    </div>
+                );
+            }
+
+            function renderAchievements() {
+                return (
+                    <div className="p-4 max-w-md mx-auto bg-gray-900 rounded">
+                        <h2 className="text-xl font-bold mb-4">{playerName}'s Achievements</h2>
+                        {achievements.length ? (
+                            achievements.map((ach, idx) => <p key={idx} className="mb-2">{ach}</p>)
+                        ) : (
+                            <p className="mb-2">No achievements yet!</p>
+                        )}
+                        <button className="mt-4 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={() => setCurrentView("dashboard")}>
+                            Close
+                        </button>
+                    </div>
+                );
+            }
+
+            function renderSettings() {
+                return (
+                    <div className="p-4 max-w-md mx-auto bg-gray-900 rounded">
+                        <h2 className="text-xl font-bold mb-4">Settings</h2>
+                        <button className="mb-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded w-full" onClick={toggleTheme}>
+                            Toggle Theme
+                        </button>
+                        <button className="mb-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded w-full" onClick={toggleMusic}>
+                            Toggle Music
+                        </button>
+                        <button className="mb-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded w-full" onClick={resetStats}>
+                            Reset Stats
+                        </button>
+                        <button className="mb-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded w-full" onClick={resetAchievements}>
+                            Reset Achievements
+                        </button>
+                        <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded w-full" onClick={() => setCurrentView("dashboard")}>
+                            Close
+                        </button>
+                    </div>
+                );
+            }
+
+            function NamePrompt() {
+                const [nameInput, setNameInput] = useState("Player");
+
+                function submitName() {
+                    setPlayerName(nameInput || "Player");
+                    setShowNamePrompt(false);
+                }
+
+                return (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                        <div className="bg-gray-900 p-6 rounded">
+                            <h2 className="text-lg font-bold mb-4">Enter Your Name</h2>
+                            <input
+                                type="text"
+                                value={nameInput}
+                                onChange={e => setNameInput(e.target.value)}
+                                className="mb-4 p-2 w-full bg-gray-700 text-white rounded"
+                            />
+                            <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={submitName}>
+                                Submit
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            function startTicTacToe() {
+                return (
+                    <TicTacToe
+                        playerName={playerName}
+                        highScores={highScores}
+                        setHighScores={saveHighScores}
+                        stats={stats}
+                        setStats={saveStats}
+                        checkAchievement={checkAchievement}
+                        playSound={playSound}
+                        onBack={() => setCurrentView("dashboard")}
+                    />
+                );
+            }
+
+            function startSnake() {
+                return=8
+                return (
+                    <Snake
+                        playerName={playerName}
+                        highScores={highScores}
+                        setHighScores={saveHighScores}
+                        stats={stats}
+                        setStats={saveStats}
+                        checkAchievement={checkAchievement}
+                        playSound={playSound}
+                        onBack={() => setCurrentView("dashboard")}
+                    />
+                );
+            }
+
+            function startNumberGuess() {
+                return (
+                    <NumberGuess
+                        playerName={playerName}
+                        highScores={highScores}
+                        setHighScores={saveHighScores}
+                        stats={stats}
+                        setStats={saveStats}
+                        checkAchievement={checkAchievement}
+                        playSound={playSound}
+                        onBack={() => setCurrentView("dashboard")}
+                    />
+                );
+            }
+
+            function startMemoryMatch() {
+                return (
+                    <MemoryMatch
+                        playerName={playerName}
+                        highScores={highScores}
+                        setHighScores={saveHighScores}
+                        stats={stats}
+                        setStats={saveStats}
+                        checkAchievement={checkAchievement}
+                        playSound={playSound}
+                        onBack={() => setCurrentView("dashboard")}
+                    />
+                );
+            }
+
+            function startPong() {
+                return (
+                    <Pong
+                        playerName={playerName}
+                        highScores={highScores}
+                        setHighScores={saveHighScores}
+                        stats={stats}
+                        setStats={saveStats}
+                        checkAchievement={checkAchievement}
+                        playSound={playSound}
+                        onBack={() => setCurrentView("dashboard")}
+                    />
+                );
+            }
+
+            function startMinesweeper() {
+                return (
+                    <Minesweeper
+                        playerName={playerName}
+                        highScores={highScores}
+                        setHighScores={saveHighScores}
+                        stats={stats}
+                        setStats={saveStats}
+                        checkAchievement={checkAchievement}
+                        playSound={playSound}
+                        onBack={() => setCurrentView("dashboard")}
+                    />
+                );
+            }
+
+            function startSimonSays() {
+                return (
+                    <SimonSays
+                        playerName={playerName}
+                        highScores={highScores}
+                        setHighScores={saveHighScores}
+                        stats={stats}
+                        setStats={saveStats}
+                        checkAchievement={checkAchievement}
+                        playSound={playSound}
+                        onBack={() => setCurrentView("dashboard")}
+                    />
+                );
+            }
+
+            function startBrickBreaker() {
+                return (
+                    <BrickBreaker
+                        playerName={playerName}
+                        highScores={highScores}
+                        setHighScores={saveHighScores}
+                        stats={stats}
+                        setStats={saveStats}
+                        checkAchievement={checkAchievement}
+                        playSound={playSound}
+                        onBack={() => setCurrentView("dashboard")}
+                    />
+                );
+            }
+
+            function TicTacToe({ playerName, highScores, setHighScores, stats, setStats, checkAchievement, playSound, onBack }) {
+                const [board, setBoard] = useState(Array(9).fill(""));
+                const [player, setPlayer] = useState("X");
+                const [gameActive, setGameActive] = useState(true);
+                const [status, setStatus] = useState("Your Turn");
+
+                function checkWinner(b) {
+                    const winCombinations = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];
+                    for (const [a, b, c] of winCombinations) {
+                        if (b[a] && b[a] === b[b] && b[a] === b[c]) return b[a];
+                    }
+                    return b.includes("") ? null : "Draw";
+                }
+
+                function minimax(b, depth, isMax) {
+                    const winner = checkWinner(b);
+                    if (winner === "O") return 10 - depth;
+                    if (winner === "X") return depth - 10;
+                    if (winner === "Draw") return 0;
+
+                    if (isMax) {
+                        let best = -Infinity;
+                        for (let i = 0; i < 9; i++) {
+                            if (!b[i]) {
+                                b[i] = "O";
+                                best = Math.max(best, minimax(b, depth + 1, false));
+                                b[i] = "";
+                            }
+                        }
+                        return best;
+                    } else {
+                        let best = Infinity;
+                        for (let i = 0; i < 9; i++) {
+                            if (!b[i]) {
+                                b[i] = "X";
+                                best = Math.min(best, minimax(b, depth + 1, true));
+                                b[i] = "";
+                            }
+                        }
+                        return best;
+                    }
+                }
+
+                function aiMove() {
+                    if (Math.random() < 0.2) {
+                        const validMoves = board.map((cell, idx) => cell === "" ? idx : null).filter(idx => idx !== null);
+                        return validMoves[Math.floor(Math.random() * validMoves.length)];
+                    }
+                    let bestScore = -Infinity;
+                    let bestMove = 0;
+                    for (let i = 0; i < 9; i++) {
+                        if (!board[i]) {
+                            board[i] = "O";
+                            const score = minimax(board, 0, false);
+                            board[i] = "";
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestMove = i;
+                            }
+                        }
+                    }
+                    return bestMove;
+                }
+
+                function makeMove(index) {
+                    if (board[index] || !gameActive) return;
+                    const newBoard = [...board];
+                    newBoard[index] = player;
+                    setBoard(newBoard);
+                    const winner = checkWinner(newBoard);
+                    if (winner) {
+                        setGameActive(false);
+                        const result = winner === "Draw" ? "It's a Draw!" : `${winner} Wins!`;
+                        setStatus(result);
+                        if (winner === "X") {
+                            setHighScores({ ...highScores, "Tic-Tac-Toe": Math.max(highScores["Tic-Tac-Toe"], 1) });
+                            setStats({ ...stats, total_score: stats.total_score + 1 });
+                            checkAchievement("Tic-Tac-Toe Master", highScores["Tic-Tac-Toe"] >= 1);
+                        }
+                        playSound("game_over");
+                        setTimeout(() => alert(result), 100);
+                    } else {
+                        setPlayer("O");
+                        setStatus("AI's Turn");
+                        setTimeout(makeAiMove, 500);
+                    }
+                }
+
+                function makeAiMove() {
+                    const move = aiMove();
+                    const newBoard = [...board];
+                    newBoard[move] = "O";
+                    setBoard(newBoard);
+                    const winner = checkWinner(newBoard);
+                    if (winner) {
+                        setGameActive(false);
+                        const result = winner === "Draw" ? "It's a Draw!" : `${winner} Wins!`;
+                        setStatus(result);
+                        playSound("game_over");
+                        setTimeout(() => alert(result), 100);
+                    } else {
+                        setPlayer("X");
+                        setStatus("Your Turn");
+                    }
+                }
+
+                return (
+                    <div className="p-4 bg-gray-900 rounded max-w-md mx-auto">
+                        <h2 className="text-xl font-bold mb-4">Tic-Tac-Toe (You are X)</h2>
+                        <p className="mb-4">{status}</p>
+                        <div className="grid grid-cols-3 gap-2">
+                            {board.map((cell, idx) => (
+                                <button
+                                    key={idx}
+                                    className="w-16 h-16 bg-gray-200 text-2xl font-bold flex items-center justify-center"
+                                    onClick={() => makeMove(idx)}
+                                >
+                                    {cell}
+                                </button>
+                            ))}
+                        </div>
+                        <button className="mt-4 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={onBack}>
+                            Back to Menu
+                        </button>
+                    </div>
+                );
+            }
+
+            function Snake({ playerName, highScores, setHighScores, stats, setStats, checkAchievement, playSound, onBack }) {
+                const canvasRef = useRef(null);
+                const [score, setScore] = useState(0);
+                const [gameOver, setGameOver] = useState(false);
+                const [gameStarted, setGameStarted] = useState(false);
+                const [snake, setSnake] = useState([{ x: 100, y: 100 }]);
+                const [direction, setDirection] = useState({ x: 20, y: 0 });
+                const [nextDirection, setNextDirection] = useState({ x: 20, y: 0 });
+                const [food, setFood] = useState({ x: 200, y: 200 });
+
+                useEffect(() => {
+                    const canvas = canvasRef.current;
+                    const ctx = canvas.getContext("2d");
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = "#1e40af";
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "red";
+                    ctx.fillRect(food.x, food.y, 20, 20);
+                    ctx.fillStyle = "green";
+                    snake.forEach(segment => ctx.fillRect(segment.x, segment.y, 20, 20));
+
+                    if (gameOver) {
+                        ctx.fillStyle = "red";
+                        ctx.font = "20px Arial";
+                        ctx.fillText(`Game Over! Score: ${score}`, 100, 200);
+                    }
+                }, [snake, food, gameOver]);
+
+                useEffect(() => {
+                    if (gameStarted && !gameOver) {
+                        const interval = setInterval(() => {
+                            setDirection(nextDirection);
+                            setSnake(prev => {
+                                const newHead = { x: prev[0].x + nextDirection.x, y: prev[0].y + nextDirection.y };
+                                if (
+                                    prev.slice(1).some(segment => segment.x === newHead.x && segment.y === newHead.y) ||
+                                    newHead.x < 0 || newHead.x >= 400 || newHead.y < 0 || newHead.y >= 400
+                                ) {
+                                    setGameOver(true);
+                                    setHighScores({ ...highScores, Snake: Math.max(highScores.Snake, score) });
+                                    setStats({ ...stats, total_score: stats.total_score + score });
+                                    checkAchievement("Snake Master", score >= 10);
+                                    playSound("game_over");
+                                    return prev;
+                                }
+                                const newSnake = [newHead, ...prev];
+                                if (newHead.x === food.x && newHead.y === food.y) {
+                                    setScore(score + 1);
+                                    playSound("point");
+                                    let newFood;
+                                    do {
+                                        newFood = {
+                                            x: Math.floor(Math.random() * 20) * 20,
+                                            y: Math.floor(Math.random() * 20) * 20
+                                        };
+                                    } while (newSnake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
+                                    setFood(newFood);
+                                } else {
+                                    newSnake.pop();
+                                }
+                                return newSnake;
+                            });
+                        }, 100);
+                        return () => clearInterval(interval);
+                    }
+                }, [gameStarted, gameOver, nextDirection, food, score]);
+
+                function handleKeyDown(e) {
+                    if (!gameStarted && e.code === "Space") {
+                        setGameStarted(true);
+                        return;
+                    }
+                    if (e.key === "ArrowUp" && direction.y !== 20) setNextDirection({ x: 0, y: -20 });
+                    else if (e.key === "ArrowDown" && direction.y !== -20) setNextDirection({ x: 0, y: 20 });
+                    else if (e.key === "ArrowLeft" && direction.x !== 20) setNextDirection({ x: -20, y: 0 });
+                    else if (e.key === "ArrowRight" && direction.x !== -20) setNextDirection({ x: 20, y: 0 });
+                }
+
+                useEffect(() => {
+                    window.addEventListener("keydown", handleKeyDown);
+                    return () => window.removeEventListener("keydown", handleKeyDown);
+                }, [gameStarted, direction]);
+
+                return (
+                    <div className="p-4 bg-gray-900 rounded max-w-md mx-auto">
+                        <h2 className="text-xl font-bold mb-4">Snake</h2>
+                        <p className="mb-4">Score: {score}</p>
+                        <canvas ref={canvasRef} width="400" height="400" className="mb-4"></canvas>
+                        {!gameStarted && (
+                            <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded mb-4" onClick={() => setGameStarted(true)}>
+                                Press Space to Start
+                            </button>
+                        )}
+                        <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={onBack}>
+                            Back to Menu
+                        </button>
+                    </div>
+                );
+            }
+
+            function NumberGuess({ playerName, highScores, setHighScores, stats, setStats, checkAchievement, playSound, onBack }) {
+                const [secretNumber] = useState(Math.floor(Math.random() * 100) + 1);
+                const [guess, setGuess] = useState("");
+                const [attempts, setAttempts] = useState(0);
+                const [status, setStatus] = useState("");
+                const [gameOver, setGameOver] = useState(false);
+
+                function checkGuess() {
+                    const num = parseInt(guess);
+                    if (isNaN(num)) {
+                        setStatus("Please enter a valid number.");
+                        return;
+                    }
+                    setAttempts(attempts + 1);
+                    if (num === secretNumber) {
+                        setStatus(`Correct! Took ${attempts + 1} attempts!`);
+                        setGameOver(true);
+                        const score = Math.max(100 - attempts, 0);
+                        setHighScores({ ...highScores, "Number Guess": Math.max(highScores["Number Guess"], score) });
+                        setStats({ ...stats, total_score: stats.total_score + score });
+                        checkAchievement("Guess Guru", attempts + 1 <= 5);
+                        playSound("game_over");
+                    } else if (num < secretNumber) {
+                        setStatus("Too low! Try again.");
+                        playSound("point");
+                    } else {
+                        setStatus("Too high! Try again.");
+                        playSound("point");
+                    }
+                    setGuess("");
+                }
+
+                return (
+                    <div className="p-4 bg-gray-900 rounded max-w-md mx-auto">
+                        <h2 className="text-xl font-bold mb-4">Number Guessing Game</h2>
+                        <p className="mb-4">Guess a number between 1 and 100</p>
+                        <input
+                            type="text"
+                            value={guess}
+                            onChange={e => setGuess(e.target.value)}
+                            className="p-2 bg-gray-700 text-white rounded mb-4 w-full"
+                            disabled={gameOver}
+                        />
+                        <p className="mb-4">{status}</p>
+                        <button
+                            className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded mb-4"
+                            onClick={checkGuess}
+                            disabled={gameOver}
+                        >
+                            Submit
+                        </button>
+                        <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={onBack}>
+                            Back to Menu
+                        </button>
+                    </div>
+                );
+            }
+
+            function MemoryMatch({ playerName, highScores, setHighScores, stats, setStats, checkAchievement, playSound, onBack }) {
+                const [cards, setCards] = useState(() => {
+                    const c = ["A", "A", "B", "B", "C", "C", "D", "D", "E", "E", "F", "F"];
+                    for (let i = c.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [c[i], c[j]] = [c[j], c[i]];
+                    }
+                    return c;
+                });
+                const [flipped, setFlipped] = useState([]);
+                const [matched, setMatched] = useState([]);
+                const [timer, setTimer] = useState(60);
+                const [gameActive, setGameActive] = useState(true);
+                const [status, setStatus] = useState("Time Left: 60s");
+
+                useEffect(() => {
+                    if (timer > 0 && gameActive) {
+                        const interval = setInterval(() => {
+                            setTimer(timer - 1);
+                            setStatus(`Time Left: ${timer - 1}s`);
+                        }, 1000);
+                        return () => clearInterval(interval);
+                    } else if (timer === 0 && gameActive) {
+                        setGameActive(false);
+                        setStatus("Time's Up!");
+                        playSound("game_over");
+                    }
+                }, [timer, gameActive]);
+
+                function flipCard(index) {
+                    if (!gameActive || flipped.includes(index) || matched.includes(index)) return;
+                    setFlipped([...flipped, index]);
+                    if (flipped.length === 1) {
+                        playSound("point");
+                        if (cards[flipped[0]] === cards[index]) {
+                            setMatched([...matched, flipped[0], index]);
+                            setFlipped([]);
+                            if (matched.length + 2 === cards.length) {
+                                setGameActive(false);
+                                const score = timer * 10;
+                                setHighScores({ ...highScores, "Memory Match": Math.max(highScores["Memory Match"], score) });
+                                setStats({ ...stats, total_score: stats.total_score + score });
+                                checkAchievement("Memory Master", score >= 500);
+                                setStatus(`Win! Score: ${score}`);
+                                playSound("game_over");
+                            }
+                        } else {
+                            setTimeout(() => setFlipped([]), 1000);
+                        }
+                    }
+                }
+
+                return (
+                    <div |className="p-4 bg-gray-900 rounded max-w-md mx-auto">
+                        <h2 className="text-xl font-bold mb-4">Memory Match</h2>
+                        <p className="mb-4">{status}</p>
+                        <div className="grid grid-cols-4 gap-2">
+                            {cards.map((card, idx) => (
+                                <button
+                                    key={idx}
+                                    className="w-16 h-24 bg-gray-200 text-2xl flex items-center justify-center"
+                                    onClick={() => flipCard(idx)}
+                                >
+                                    {flipped.includes(idx) || matched.includes(idx) ? card : "?"}
+                                </button>
+                            ))}
+                        </div>
+                        <button className="mt-4 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={onBack}>
+                            Back to Menu
+                        </button>
+                    </div>
+                );
+            }
+
+            function Pong({ playerName, highScores, setHighScores, stats, setStats, checkAchievement, playSound, onBack }) {
+                const canvasRef = useRef(null);
+                const [playerScore, setPlayerScore] = useState(0);
+                const [aiScore, setAiScore] = useState(0);
+                const [ball, setBall] = useState({ x: 295, y: 195, dx: 5, dy: 5 });
+                const [paddle1, setPaddle1] = useState({ y: 150 });
+                const [paddle2, setPaddle2] = useState({ y: 150 });
+                const [gameActive, setGameActive] = useState(true);
+                const [aiDelay, setAiDelay] = useState(0);
+
+                useEffect(() => {
+                    const canvas = canvasRef.current;
+                    const ctx = canvas.getContext("2d");
+                    ctx.fillStyle = "black";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(50, paddle1.y, 10, 100);
+                    ctx.fillRect(540, paddle2.y, 10, 100);
+                    ctx.fillRect(ball.x, ball.y, 10, 10);
+                    if (!gameActive) {
+                        ctx.fillStyle = "white";
+                        ctx.font = "20px Arial";
+                        ctx.fillText(`${playerScore >= 5 ? "Player" : "AI"} Wins! ${playerScore}-${aiScore}`, 200, 200);
+                    }
+                }, [ball, paddle1, paddle2, gameActive, playerScore, aiScore]);
+
+                useEffect(() => {
+                    if (gameActive) {
+                        const interval = setInterval(() => {
+                            setAiDelay(prev => prev + 1);
+                            if (aiDelay % 3 === 0) {
+                                setPaddle2({ y: ball.y - 50 + (Math.random() * 40 - 20) });
+                            }
+                            setBall(prev => {
+                                let { x, y, dx, dy } = prev;
+                                x += dx;
+                                y += dy;
+                                if (y <= 0 || y >= 390) {
+                                    dy = -dy;
+                                    playSound("point");
+                                }
+                                if (x <= 60 && paddle1.y < y && y < paddle1.y + 100) {
+                                    dx = -dx;
+                                    playSound("point");
+                                }
+                                if (x >= 530 && paddle2.y < y && y < paddle2.y + 100) {
+                                    dx = -dx;
+                                    playSound("point");
+                                }
+                                if (x <= 0) {
+                                    setAiScore(aiScore + 1);
+                                    playSound("point");
+                                    return { x: 295, y: 195, dx: 5 * (Math.random() > 0.5 ? 1 : -1), dy: 5 * (Math.random() > 0.5 ? 1 : -1) };
+                                }
+                                if (x >= 600) {
+                                    setPlayerScore(playerScore + 1);
+                                    playSound("point");
+                                    return { x: 295, y: 195, dx: 5 * (Math.random() > 0.5 ? 1 : -1), dy: 5 * (Math.random() > 0.5 ? 1 : -1) };
+                                }
+                                return { x, y, dx, dy };
+                            });
+                            if (playerScore >= 5 || aiScore >= 5) {
+                                setGameActive(false);
+                                setHighScores({ ...highScores, Pong: Math.max(highScores.Pong, playerScore) });
+                                setStats({ ...stats, total_score: stats.total_score + playerScore });
+                                checkAchievement("Pong Champion", playerScore >= 5);
+                                playSound("game_over");
+                            }
+                        }, 20);
+                        return () => clearInterval(interval);
+                    }
+                }, [gameActive, aiDelay, ball, paddle1, paddle2, playerScore, aiScore]);
+
+                function handleMouseMove(e) {
+                    const canvas = canvasRef.current;
+                    const rect = canvas.getBoundingClientRect();
+                    const y = e.clientY - rect.top - 50;
+                    if (0 < y && y < 300) {
+                        setPaddle1({ y });
+                    }
+                }
+
+                return (
+                    <div className="p-4 bg-gray-900 rounded max-w-md mx-auto">
+                        <h2 className="text-xl font-bold mb-4">Pong</h2>
+                        <p className="mb-4">Player: {playerScore} AI: {aiScore}</p>
+                        <canvas ref={canvasRef} width="600" height="400" className="mb-4" onMouseMove={handleMouseMove}></canvas>
+                        <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={onBack}>
+                            Back to Menu
+                        </button>
+                    </div>
+                );
+            }
+
+            function Minesweeper({ playerName, highScores, setHighScores, stats, setStats, checkAchievement, playSound, onBack }) {
+                const gridSize = 5;
+                const mineCount = 5;
+                const [mines] = useState(() => {
+                    const m = new Set();
+                    while (m.size < mineCount) {
+                        m.add(Math.floor(Math.random() * gridSize * gridSize));
+                    }
+                    return m;
+                });
+                const [revealed, setRevealed] = useState(new Set());
+                const [flagged, setFlagged] = useState(new Set());
+                const [gameActive, setGameActive] = useState(true);
+                const [status, setStatus] = useState("Left-click to reveal, Right-click to flag");
+
+                function countAdjacentMines(index) {
+                    const row = Math.floor(index / gridSize);
+                    const col = index % gridSize;
+                    let count = 0;
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            if (dr === 0 && dc === 0) continue;
+                            const r = row + dr;
+                            const c = col + dc;
+                            if (0 <= r && r < gridSize && 0 <= c && c < gridSize && mines.has(r * gridSize + c)) {
+                                count++;
+                            }
+                        }
+                    }
+                    return count;
+                }
+
+                function revealTile(index) {
+                    if (!gameActive || revealed.has(index) || flagged.has(index)) return;
+                    setRevealed(prev => new Set([...prev, index]));
+                    if (mines.has(index)) {
+                        setGameActive(false);
+                        setStatus("Game Over!");
+                        playSound("game_over");
+                    } else {
+                        const count = countAdjacentMines(index);
+                        if (count === 0) {
+                            const row = Math.floor(index / gridSize);
+                            const col = index % gridSize;
+                            for (let dr = -1; dr <= 1; dr++) {
+                                for (let dc = -1; dc <= 1; dc++) {
+                                    const r = row + dr;
+                                    const c = col + dc;
+                                    if (0 <= r && r < gridSize && 0 <= c && c < gridSize) {
+                                        revealTile(r * gridSize + c);
+                                    }
+                                }
+                            }
+                        }
+                        if (revealed.size + 1 === gridSize * gridSize - mineCount) {
+                            setGameActive(false);
+                            const score = 100;
+                            setHighScores({ ...highScores, Minesweeper: Math.max(highScores.Minesweeper, score) });
+                            setStats({ ...stats, total_score: stats.total_score + score });
+                            checkAchievement("Mine Sweeper", true);
+                            setStatus("You Win!");
+                            playSound("game_over");
+                        }
+                    }
+                }
+
+                function flagTile(e, index) {
+                    e.preventDefault();
+                    if (!gameActive || revealed.has(index)) return;
+                    setFlagged(prev => {
+                        const newFlagged = new Set(prev);
+                        if (newFlagged.has(index)) {
+                            newFlagged.delete(index);
+                        } else {
+                            newFlagged.add(index);
+                        }
+                        return newFlagged;
+                    });
+                    playSound("point");
+                }
+
+                return (
+                    <div className="p-4 bg-gray-900 rounded max-w-md mx-auto">
+                        <h2 className="text-xl font-bold mb-4">Minesweeper</h2>
+                        <p className="mb-4">{status}</p>
+                        <div className="grid grid-cols-5 gap-1">
+                            {Array.from({ length: gridSize * gridSize }, (_, idx) => (
+                                <button
+                                    key={idx}
+                                    className={`w-12 h-12 bg-gray-200 flex items-center justify-center text-lg ${revealed.has(idx) && mines.has(idx) ? "bg-red-500" : revealed.has(idx) ? "bg-gray-300" : ""}`}
+                                    onClick={() => revealTile(idx)}
+                                    onContextMenu={e => flagTile(e, idx)}
+                                >
+                                    {flagged.has(idx) ? "🚩" : revealed.has(idx) ? (mines.has(idx) ? "💣" : countAdjacentMines(idx) || "") : ""}
+                                </button>
+                            ))}
+                        </div>
+                        <button className="mt-4 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={onBack}>
+                            Back to Menu
+                        </button>
+                    </div>
+                );
+            }
+
+            function SimonSays({ playerName, highScores, setHighScores, stats, setStats, checkAchievement, playSound, onBack }) {
+                const [sequence, setSequence] = useState([]);
+                const [playerSequence, setPlayerSequence] = useState([]);
+                const [score, setScore] = useState(0);
+                const [gameActive, setGameActive] = useState(false);
+                const [status, setStatus] = useState("Press Start!");
+                const colors = ["red", "blue", "green", "yellow"];
+                const buttonRefs = useRef(colors.map(() => React.createRef()));
+
+                function brightenColor(color) {
+                    return {
+                        red: "#ff5555",
+                        blue: "#5555ff",
+                        green: "#55ff55",
+                        yellow: "#ffff55"
+                    }[color];
+                }
+
+                function flashButton(colorIdx, callback) {
+                    const button = buttonRefs.current[colorIdx].current;
+                    button.style.backgroundColor = brightenColor(colors[colorIdx]);
+                    playSound("point");
+                    setTimeout(() => {
+                        button.style.backgroundColor = colors[colorIdx];
+                        callback();
+                    }, 500);
+                }
+
+                function showSequence(index = 0) {
+                    if (index < sequence.length) {
+                        flashButton(sequence[index], () => showSequence(index + 1));
+                    } else {
+                        setPlayerSequence([]);
+                        setStatus("Your turn!");
+                    }
+                }
+
+                function addToSequence() {
+                    const newSequence = [...sequence, Math.floor(Math.random() * 4)];
+                    setSequence(newSequence);
+                    setScore(newSequence.length - 1);
+                    setStatus("Watch the sequence!");
+                    setTimeout(() => showSequence(), 1000);
+                }
+
+                function playerClick(index) {
+                    if (!gameActive) return;
+                    setPlayerSequence([...playerSequence, index]);
+                    flashButton(index, () => {
+                        if (playerSequence[index] !== sequence[playerSequence.length]) {
+                            setGameActive(false);
+                            setStatus(`Game Over! Score: ${score}`);
+                            setHighScores({ ...highScores, "Simon Says": Math.max(highScores["Simon Says"], score) });
+                            setStats({ ...stats, total_score: stats.total_score + score });
+                            checkAchievement("Simon Star", score >= 10);
+                            playSound("game_over");
+                        } else if (playerSequence.length === sequence.length) {
+                            setTimeout(addToSequence, 1000);
+                        }
+                    });
+                }
+
+                return (
+                    <div className="p-4 bg-gray-900 rounded max-w-md mx-auto">
+                        <h2 className="text-xl font-bold mb-4">Simon Says</h2>
+                        <p className="mb-4">{status}</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            {colors.map((color, idx) => (
+                                <button
+                                    key={color}
+                                    ref={buttonRefs.current[idx]}
+                                    className="w-24 h-24 rounded"
+                                    style={{ backgroundColor: color }}
+                                    onClick={() => playerClick(idx)}
+                                ></button>
+                            ))}
+                        </div>
+                        <button
+                            className="mt-4 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded"
+                            onClick={() => {
+                                setGameActive(true);
+                                addToSequence();
+                            }}
+                            disabled={gameActive}
+                        >
+                            Start Game
+                        </button>
+                        <button className="mt-2 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={onBack}>
+                            Back to Menu
+                        </button>
+                    </div>
+                );
+            }
+
+            function BrickBreaker({ playerName, highScores, setHighScores, stats, setStats, checkAchievement, playSound, onBack }) {
+                const canvasRef = useRef(null);
+                const [score, setScore] = useState(0);
+                const [ball, setBall] = useState({ x: 295, y: 335, dx: 5, dy: -5 });
+                const [paddle, setPaddle] = useState({ x: 250 });
+                const [bricks, setBricks] = useState(
+                    Array.from({ length: 15 }, (_, i) => ({
+                        x: 50 + (i % 5) * 100,
+                        y: 50 + Math.floor(i / 5) * 30,
+                        active: true
+                    }))
+                );
+                const [gameActive, setGameActive] = useState(true);
+
+                useEffect(() => {
+                    const canvas = canvasRef.current;
+                    const ctx = canvas.getContext("2d");
+                    ctx.fillStyle = "black";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(paddle.x, 350, 100, 10);
+                    ctx.fillRect(ball.x, ball.y, 10, 10);
+                    ctx.fillStyle = "blue";
+                    bricks.forEach(brick => {
+                        if (brick.active) {
+                            ctx.fillRect(brick.x, brick.y, 90, 20);
+                        }
+                    });
+                    if (!gameActive) {
+                        ctx.fillStyle = "white";
+                        ctx.font = "20px Arial";
+                        ctx.fillText(`${bricks.every(b => !b.active) ? "You Win!" : "Game Over!"} Score: ${score}`, 200, 200);
+                    }
+                }, [ball, paddle, bricks, gameActive]);
+
+                useEffect(() => {
+                    if (gameActive) {
+                        const interval = setInterval(() => {
+                            setBall(prev => {
+                                let { x, y, dx, dy } = prev;
+                                x += dx;
+                                y += dy;
+                                if (y <= 0) {
+                                    dy = -dy;
+                                    playSound("point");
+                                }
+                                if (x <= 0 || x >= 590) {
+                                    dx = -dx;
+                                    playSound("point");
+                                }
+                                if (y >= 340 && y <= 350 && paddle.x < x && x < paddle.x + 100) {
+                                    dy = -dy;
+                                    playSound("point");
+                                }
+                                setBricks(prevBricks => {
+                                    const newBricks = [...prevBricks];
+                                    for (let i = 0; i < newBricks.length; i++) {
+                                        const brick = newBricks[i];
+                                        if (brick.active && brick.y < y && y < brick.y + 20 && brick.x < x && x < brick.x + 90) {
+                                            newBricks[i] = { ...brick, active: false };
+                                            dy = -dy;
+                                            setScore(score + 10);
+                                            playSound("point");
+                                            break;
+                                        }
+                                    }
+                                    return newBricks;
+                                });
+                                if (y >= 400) {
+                                    setGameActive(false);
+                                    setHighScores({ ...highScores, "Brick Breaker": Math.max(highScores["Brick Breaker"], score) });
+                                    setStats({ ...stats, total_score: stats.total_score + score });
+                                    checkAchievement("Brick Buster", score >= 100);
+                                    playSound("game_over");
+                                } else if (bricks.every(b => !b.active)) {
+                                    setGameActive(false);
+                                    setHighScores({ ...highScores, "Brick Breaker": Math.max(highScores["Brick Breaker"], score) });
+                                    setStats({ ...stats, total_score: stats.total_score + score });
+                                    checkAchievement("Brick Buster", score >= 100);
+                                    playSound("game_over");
+                                }
+                                return { x, y, dx, dy };
+                            });
+                        }, 20);
+                        return () => clearInterval(interval);
+                    }
+                }, [gameActive, ball, paddle, bricks, score]);
+
+                function handleMouseMove(e) {
+                    const canvas = canvasRef.current;
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left - 50;
+                    if (50 < x && x < 550) {
+                        setPaddle({ x });
+                    }
+                }
+
+                return (
+                    <div className="p-4 bg-gray-900 rounded max-w-md mx-auto">
+                        <h2 className="text-xl font-bold mb-4">Brick Breaker</h2>
+                        <p className="mb-4">Score: {score}</p>
+                        <canvas ref={canvasRef} width="600" height="400" className="mb-4" onMouseMove={handleMouseMove}></canvas>
+                        <button className="py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded" onClick={onBack}>
+                            Back to Menu
+                        </button>
+                    </div>
+                );
+            }
+
+            return (
+                <div className={isDarkTheme ? "bg-gray-800 text-white" : "bg-gray-100 text-black"}>
+                    {showNamePrompt && <NamePrompt />}
+                    {currentView === "dashboard" && renderDashboard()}
+                    {currentView === "highScores" && renderHighScores()}
+                    {currentView === "stats" && renderStats()}
+                    {currentView === "achievements" && renderAchievements()}
+                    {currentView === "settings" && renderSettings()}
+                    {currentView === "game" && gameState.startFunction()}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<GameHub />, document.getElementById("root"));
+    </script>
+</body>
+</html>
